@@ -18,4 +18,4 @@ if __name__ == '__main__':
     p = mp.Pool(coreNumber)
     Data = p.map(func, array)
 ```
-
+Segmentation is used to remove the amorphous background. 
