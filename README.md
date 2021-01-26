@@ -4,5 +4,10 @@ Tool to analyze the lattice spacing within HRTEM images using a rolling window a
 data = import(filename)
 pixelsize = 0.3 #nm
 ```
-To run the code you will have to select three reflections in the FFT which are used for the analysis. 
+To run the code you will have to select three reflections in the FFT which are used for the analysis. File 1 is used to process the data and generate the results. The code is parallized, make sure to select the appropriate number of cores. 
+```
 
+```
+Finally, the results are plotted using a second analysis file. 
+```
+```
