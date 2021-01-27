@@ -11,8 +11,8 @@ RefNumber = 3
 ```
 First the reflections used for the analysis must be selected in the image using the following function: 
 ```
-import HRTEMFFTanalysis as fftroll
-peakPos = fftroll.RefID(dataset, RefNumber, pixelSize, FFTwindowSize)
+import HRTEMFFTanalysis as FFw
+peakPos = FFw.RefID(dataset, RefNumber, pixelSize, FFTwindowSize)
 ```
 Subsequently the rolling window algorithm determines spatial variations of the selected reflections within the crystal. Parallelization is used to reduce the time it takes for the process to finish (the number of selected CPU cores is given be coreNumber). 
 ```
@@ -20,7 +20,7 @@ if __name__ == '__main__':
     start_i = 0
     end_i = np.shape(dataset)[0]
     array = list(range(start_i, end_i))
-    func = partial(fftroll.FFTrollingWindow, dataset, peakPos, pixelSize, FFTwindowSize)
+    func = partial(FFw.FFTrollingWindow, dataset, peakPos, pixelSize, FFTwindowSize)
     p = mp.Pool(coreNumber)
     Data = p.map(func, array)
 ```
