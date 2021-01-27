@@ -12,7 +12,7 @@ RefNumber = 3
 First the reflections used for the analysis must be selected in the image using the following function: 
 ```
 import HRTEMFFTanalysis as FFw
-peakPos = FFw.RefID(dataset, RefNumber, pixelSize, FFTwindowSize)
+peakPos = FFw.RefID(dataset, RefNumber, FFTwindowSize)
 ```
 Subsequently the rolling window algorithm determines spatial variations of the selected reflections within the crystal. Parallelization is used to reduce the time it takes for the process to finish (the number of selected CPU cores is given be coreNumber). 
 ```
@@ -20,9 +20,11 @@ if __name__ == '__main__':
     start_i = 0
     end_i = np.shape(dataset)[0]
     array = list(range(start_i, end_i))
-    func = partial(FFw.FFTrollingWindow, dataset, peakPos, pixelSize, FFTwindowSize)
+    func = partial(FFw.FFTrollingWindow, dataset, peakPos, FFTwindowSize)
     p = mp.Pool(coreNumber)
     Data = p.map(func, array)
 ```
 Segmentation is used to remove the amorphous background. Falsely identified reflections are removed based on the angle (a variation of xyz degree is considered acceptable). In addition 10x10 pixel are averaged to obtain the local d-spacing for the reflection. 
+```
 
+```
