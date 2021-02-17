@@ -5,22 +5,6 @@ Created on Sun May 17 13:26:09 2020
 @author: Sophia Betzler
 """
 
-##### Data
-im = io.imread('Aligned 20201120 1138 620 kx Ceta_binned_aligned_slice1crop.tif')
-
-##### set variables
-FFTwindowSize=128
-pixelSize = 0.033344114597
-coreNumber = 15
-# if memory is a problem: 
-parts = 3
-# if memory is no problem:
-parts = 0
-
-# Determine position of the reflections in the image
-peakPos = RefID(im, pixelSize, FFTwindowSize)
-start = time.time()
-
 #%%
 from scipy import optimize
 import scipy.io
@@ -38,6 +22,21 @@ from scipy.optimize import OptimizeWarning
 from matplotlib.widgets import Cursor
 warnings.simplefilter("error", OptimizeWarning)
 
+##### Data
+im = io.imread('Aligned 20201120 1138 620 kx Ceta_binned_aligned_slice1crop.tif')
+
+##### set variables
+FFTwindowSize=128
+pixelSize = 0.033344114597
+coreNumber = 15
+# if memory is a problem: 
+parts = 3
+# if memory is no problem:
+parts = 0
+
+# Determine position of the reflections in the image
+
+start = time.time()
 
 
 def RefID(data, pixelSize, FFTwindowSize):
@@ -232,7 +231,7 @@ def testfunc(start, end):
     array = list(range(start, end))
     return array
 
-
+peakPos = RefID(im, pixelSize, FFTwindowSize)
 data2 = createImage(im, FFTwindowSize, parts)
 
 if np.shape(data2)[0] == 3:
