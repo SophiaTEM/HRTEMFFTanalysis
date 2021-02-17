@@ -11,7 +11,7 @@ im = io.imread('Aligned 20201120 1138 620 kx Ceta_binned_aligned_slice1crop.tif'
 ##### set variables
 FFTwindowSize=128
 pixelSize = 0.033344114597
-
+coreNumber = 15
 # if memory is a problem: 
 parts = 3
 # if memory is no problem:
@@ -260,7 +260,7 @@ else:
         #start_i = 0
         #end_i = 200
         array = list(range(start_i, end_i))
-        p = mp.Pool(15)
+        p = mp.Pool(coreNumber)
         data = p.map(fftanalysis2, array)
         #print(data)
         np.save('data' + '.npy', data)
