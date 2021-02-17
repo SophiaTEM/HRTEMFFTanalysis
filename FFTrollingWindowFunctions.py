@@ -1,9 +1,27 @@
 # -*- coding: utf-8 -*-
 """
-Created on Tue Jan 26 09:59:44 2021
+Created on Sun May 17 13:26:09 2020
 
-@author: Sophia
+@author: Sophia Betzler
 """
+
+##### Data
+im = io.imread('Aligned 20201120 1138 620 kx Ceta_binned_aligned_slice1crop.tif')
+
+##### set variables
+FFTwindowSize=128
+pixelSize = 0.033344114597
+
+# if memory is a problem: 
+parts = 3
+# if memory is no problem:
+parts = 0
+
+# Determine position of the reflections in the image
+peakPos = RefID(im, pixelSize, FFTwindowSize)
+start = time.time()
+
+#%%
 from scipy import optimize
 import scipy.io
 import multiprocessing as mp
@@ -14,9 +32,15 @@ import hyperspy.api as hs
 import matplotlib.pyplot as plt
 from matplotlib import cm
 import math
+import warnings
+from skimage import io
+from scipy.optimize import OptimizeWarning
 from matplotlib.widgets import Cursor
+warnings.simplefilter("error", OptimizeWarning)
 
-def RefID(data, RefNumber, pixelSize, FFTwindowSize):
+
+
+def RefID(data, pixelSize, FFTwindowSize):
     def select_mvc(data):
         fig = plt.figure(figsize=(11, 7))
         ax = fig.add_subplot(1, 1, 1)
@@ -43,397 +67,205 @@ def RefID(data, RefNumber, pixelSize, FFTwindowSize):
     FF = np.log(dataset_crop.fft(shift=True, apodization=True).amplitude)
     ax = plt.imshow(FF)
     peakPos = []
-    if RefNumber == 1:
-        A1 = select_mvc(FF)    
-        peakPos.append(A1)
-    elif RefNumber == 2:
-        A1 = select_mvc(FF)    
-        peakPos.append(A1)
-        A2 = select_mvc(FF)
-        peakPos.append(A2)
-    elif RefNumber == 3:
-        A1 = select_mvc(FF)    
-        peakPos.append(A1)
-        A2 = select_mvc(FF)
-        peakPos.append(A2)
-        A3 = select_mvc(FF)
-        peakPos.append(A3)
-    elif RefNumber == 4:
-        A1 = select_mvc(FF)    
-        peakPos.append(A1)
-        A2 = select_mvc(FF)
-        peakPos.append(A2)
-        A3 = select_mvc(FF)
-        peakPos.append(A3)
-        A4 = select_mvc(FF)
-        peakPos.append(A4)
-    else:
-        'too many reflections selected, maximal number is 4'
+    A1 = select_mvc(FF)    
+    peakPos.append(A1)
+    A2 = select_mvc(FF)
+    peakPos.append(A2)
+    A3 = select_mvc(FF)
+    peakPos.append(A3)
     return peakPos
 
-
-def FFTrollingWindow(i, data, peakPos, pixelSize, FFTwindowSize):
-    def twoD_Gaussian(xdata_tuple, amplitude, xo, yo, sigma_x, sigma_y, theta, offset):
-        (x, y) = xdata_tuple
-        xo = float(xo)
-        yo = float(yo)
-        a = (np.cos(theta)**2)/(2*sigma_x**2) + (np.sin(theta)**2)/(2*sigma_y**2)
-        b = -(np.sin(2*theta))/(4*sigma_x**2) + (np.sin(2*theta))/(4*sigma_y**2)
-        c = (np.sin(theta)**2)/(2*sigma_x**2) + (np.cos(theta)**2)/(2*sigma_y**2)
-        g = offset + amplitude*np.exp( - (a*((x-xo)**2) + 2*b*(x-xo)*(y-yo)
-                            + c*((y-yo)**2)))
-        return g.ravel()
+def createImage(im, FFTwindowSize, parts):
+    if parts != 0:
+        im2 = np.pad(im, ((int(FFTwindowSize/2), int(FFTwindowSize/2)),(int(FFTwindowSize/2), int(FFTwindowSize/2))))
+        im_crop = np.zeros([parts*parts, int(np.shape(im)[0]/parts+FFTwindowSize), int(np.shape(im)[1]/parts+FFTwindowSize)])
     
-    dict0 = {'size': np.shape(data)[0], 'name':'Axis0', 'units':'nm', 'scale':pixelSize, 'offset':1}
-    dataset = hs.signals.BaseSignal(data, axes=[dict0, dict0])
+        k = 0
+        for i in range(parts):
+            for j in range(parts):
+                im_crop[k] = im2[i*int(np.shape(im)[0]/parts):int((i+1)*np.shape(im)[0]/parts+FFTwindowSize), j*int(np.shape(im)[1]/parts):int((j+1)*np.shape(im)[1]/parts+FFTwindowSize)]
+                k = k + 1
+    
+        data2 = np.pad(im_crop, ((0, 0), (0, FFTwindowSize),(0, FFTwindowSize)))
+    else:
+        data2 = np.pad(im, ((0, 0), (0, FFTwindowSize),(0, FFTwindowSize)))
+    return data2
+
+
+##### Gaussian function to fit to the peaks
+#define model function and pass independant variables x and y as a list
+def twoD_Gaussian(xdata_tuple, amplitude, xo, yo, sigma_x, sigma_y, theta, offset):
+    (x, y) = xdata_tuple                                                        
+    xo = float(xo)                                                              
+    yo = float(yo)                                                              
+    a = (np.cos(theta)**2)/(2*sigma_x**2) + (np.sin(theta)**2)/(2*sigma_y**2)   
+    b = -(np.sin(2*theta))/(4*sigma_x**2) + (np.sin(2*theta))/(4*sigma_y**2)    
+    c = (np.sin(theta)**2)/(2*sigma_x**2) + (np.cos(theta)**2)/(2*sigma_y**2)   
+    g = offset + amplitude*np.exp( - (a*((x-xo)**2) + 2*b*(x-xo)*(y-yo)         
+                        + c*((y-yo)**2)))                                   
+    return g.ravel()  
+
+def fftanalysis2(i):
     start_j = 0
     end_j = np.shape(dataset)[0]-FFTwindowSize
+    #area1 
+    A1x1 = peakPos[0][0][1] - 7
+    A1x2 = peakPos[0][0][1] + 15
+    A1y1 = peakPos[0][0][0] - 7
+    A1y2 = peakPos[0][0][0] + 15
+    #area2
+    A2x1 = peakPos[1][0][1] - 7
+    A2x2 = peakPos[1][0][1] + 15
+    A2y1 = peakPos[1][0][0] - 7
+    A2y2 = peakPos[1][0][0] + 15
+    #area3
+    A3x1 = peakPos[2][0][1] - 7
+    A3x2 = peakPos[2][0][1] + 15
+    A3y1 = peakPos[2][0][0] - 7
+    A3y2 = peakPos[2][0][0] + 15
     #end_j = np.shape(dataset)[0]
-    map_d_pxl =  np.zeros([np.shape(peakPos)[0]+1, np.shape(dataset)[0], np.shape(dataset)[1]])
-    map_angle =  np.zeros([np.shape(peakPos)[0], np.shape(dataset)[0], np.shape(dataset)[1]])
-    vector_original = np.zeros([3])
-    vector_original[0] = 0
-    vector_original[1] = FFTwindowSize/2
-    vector_original[2] = np.sqrt(np.square(vector_original[0])+np.square(vector_original[1]))
+    map_d_pxl =  np.zeros([4, np.shape(dataset)[1], np.shape(dataset)[1]])
+    map_angle =  np.zeros([3, np.shape(dataset)[1], np.shape(dataset)[1]])
     error3 = 0
     error1 = 0
     error2 = 0
-    error4 = 0
-    z = np.zeros(end_j)
-    
     for j in range(start_j, end_j):
-        map_d_pxl[np.shape(peakPos)[0]+1, i, j] = dataset.data[i, j]
+        map_d_pxl[3, i, j] = dataset.data[i, j]
         dataset_crop = dataset.isig[i:(i+FFTwindowSize), j:(j+FFTwindowSize)]
         FF = np.log(dataset_crop.fft(shift=True, apodization=True).amplitude)
-        if np.shape(peakPos)[0] == 1: 
-        # AREA 1
-            area1_x1 = int(peakPos[0][0][1]-FFTwindowSize/16)
-            area1_x2 = int(peakPos[0][0][1]+FFTwindowSize/16)
-            area1_y1 = int(peakPos[0][0][0]-FFTwindowSize/16)
-            area1_y2 = int(peakPos[0][0][0]+FFTwindowSize/16)
-            area1 = FF.data[area1_x1:area1_x2, area1_y1:area1_y2]
-            #p = np.asarray(area1).astype('float')
-            w, h = np.shape(area1)
-            x, y = np.mgrid[0:h, 0:w]
-            #xy = (x, y)
-            initial_guess = (1, 6, 6, 1, 1, 0, 1)
-            if np.max(area1) < 2:
+    # AREA 1
+        area1 = FF.data[A1x1:A1x2, A1y1:A1y2]
+        area1 = np.clip(area1, 0.85*np.max(area1), np.max(area1))
+        w, h = np.shape(area1)
+        x, y = np.mgrid[0:h, 0:w]
+        initial_guess = (1, 6, 6, 3, 3, 0, 8)
+        bounds = ([-np.inf, 1, 1, -np.inf, -np.inf, -np.inf, -np.inf],[np.inf, 14, 14, np.inf, np.inf, np.inf, np.inf])
+        if np.max(area1) < 5:
+            map_d_pxl[0, j] = 0
+            map_angle[0, j] = 0 
+        else:
+            try:
+                try:
+                    popt1, pcov1 = optimize.curve_fit(twoD_Gaussian, (x, y), np.ravel(area1), p0=initial_guess, bounds=bounds, method='dogbox')
+                except OptimizeWarning:
+                    area1 = FF.data[A1x1:A1x2, A1y1:A1y2]
+                    popt1, pcov1 = optimize.curve_fit(twoD_Gaussian, (x, y), np.ravel(area1), p0=initial_guess, bounds=bounds, method='dogbox')
+                #area1a = FF_filtered[80:90, 13:23]   
+                #popt1, pcov1 = optimize.curve_fit(twoD_Gaussian, (x, y), np.ravel(area1), p0=initial_guess)
+                #data1_fitted = twoD_Gaussian((x, y), *popt1)
+                #plt.figure(1)
+                #plt.imshow(data1_fitted.reshape(15, 15))
+            #def twoD_Gaussian((x,y), amplitude, xo, yo, sigma_x, sigma_y, theta, offset):
+                d1_pxl = np.sqrt(np.square(FFTwindowSize/2 - (A1x1 + popt1[1])) + np.square(FFTwindowSize/2 - (A1y1 + popt1[2])))
+                angle1 = abs(math.atan((FFTwindowSize/2 - (A1y1 + popt1[2]))/(FFTwindowSize/2 - (A1x1 + popt1[1])))*180/math.pi)
+                map_d_pxl[0, j] = d1_pxl
+                map_angle[0, j] = angle1
+                del popt1, pcov1
+            except RuntimeError:
                 map_d_pxl[0, j] = 0
                 map_angle[0, j] = 0
-            else:
+                error1 = error1 + 1
+    # AREA 2
+        area2 = FF.data[A2x1:A2x2, A2y1:A2y2]
+        area2 = np.clip(area2, 0.85*np.max(area2), np.max(area2))
+        w, h = np.shape(area2)
+        x, y = np.mgrid[0:h, 0:w]
+        initial_guess = (1, 6, 6, 3, 3, 0, 8)
+        bounds = ([-np.inf, 1, 1, -np.inf, -np.inf, -np.inf, -np.inf],[np.inf, 14, 14, np.inf, np.inf, np.inf, np.inf])
+        if np.max(area2) < 5:
+            map_d_pxl[1, j] = 0
+            map_angle[1, j] = 0
+        else:
+            try:
                 try:
-                    #area1a = FF_filtered[80:90, 13:23]   
-                    popt1, pcov1 = optimize.curve_fit(twoD_Gaussian, (x, y), np.ravel(area1), p0=initial_guess)
-                    data1_fitted = twoD_Gaussian((x, y), *popt1)
-                    #plt.figure(1)
-                    #plt.imshow(data1_fitted.reshape(15, 15))
-                    reflection1 = np.zeros([2])
-                    reflection1[0] = area1_x1 + popt1[1]
-                    reflection1[1] = area1_y1 + popt1[2]
-                    vector1 = np.zeros([2])
-                    vector1[0] = FFTwindowSize/2 - reflection1[0]
-                    vector1[1] = FFTwindowSize/2 - reflection1[1]
-                    d1_pxl = np.sqrt(np.square(vector1[0]) + np.square(vector1[1]))
-                    angle1 = math.acos((vector_original[0]*vector1[0] + vector_original[1]*vector1[1])/(d1_pxl*vector_original[2]))*180/math.pi
-                    map_d_pxl[0, j] = d1_pxl
-                    map_angle[0, j] = angle1
-                    del popt1, vector1, reflection1
-                except RuntimeError:
-                    map_d_pxl[0, j] = 0
-                    map_angle[0, j] = 0
-                    error1 = error1 + 1
-        elif np.shape(peakPos)[0] == 2: 
-        # AREA 1
-            area1_x1 = int(peakPos[0][0][1]-FFTwindowSize/16)
-            area1_x2 = int(peakPos[0][0][1]+FFTwindowSize/16)
-            area1_y1 = int(peakPos[0][0][0]-FFTwindowSize/16)
-            area1_y2 = int(peakPos[0][0][0]+FFTwindowSize/16)
-            area1 = FF.data[area1_x1:area1_x2, area1_y1:area1_y2]
-            #p = np.asarray(area1).astype('float')
-            w, h = np.shape(area1)
-            x, y = np.mgrid[0:h, 0:w]
-            #xy = (x, y)
-            initial_guess = (1, 6, 6, 1, 1, 0, 1)
-            if np.max(area1) < 2:
-                map_d_pxl[0, j] = 0
-                map_angle[0, j] = 0
-            else:
-                try:
-                    #area1a = FF_filtered[80:90, 13:23]   
-                    popt1, pcov1 = optimize.curve_fit(twoD_Gaussian, (x, y), np.ravel(area1), p0=initial_guess)
-                    data1_fitted = twoD_Gaussian((x, y), *popt1)
-                    #plt.figure(1)
-                    #plt.imshow(data1_fitted.reshape(15, 15))
-                    reflection1 = np.zeros([2])
-                    reflection1[0] = area1_x1 + popt1[1]
-                    reflection1[1] = area1_y1 + popt1[2]
-                    vector1 = np.zeros([2])
-                    vector1[0] = FFTwindowSize/2 - reflection1[0]
-                    vector1[1] = FFTwindowSize/2 - reflection1[1]
-                    d1_pxl = np.sqrt(np.square(vector1[0]) + np.square(vector1[1]))
-                    angle1 = math.acos((vector_original[0]*vector1[0] + vector_original[1]*vector1[1])/(d1_pxl*vector_original[2]))*180/math.pi
-                    map_d_pxl[0, j] = d1_pxl
-                    map_angle[0, j] = angle1
-                    del popt1, vector1, reflection1
-                except RuntimeError:
-                    map_d_pxl[0, j] = 0
-                    map_angle[0, j] = 0
-                    error1 = error1 + 1
-            # AREA 2
-            area2_x1=int(peakPos[1][0][1]-FFTwindowSize/16)
-            area2_x2=int(peakPos[1][0][1]+FFTwindowSize/16)
-            area2_y1=int(peakPos[1][0][0]-FFTwindowSize/16)
-            area2_y2=int(peakPos[1][0][0]+FFTwindowSize/16)
-            area2 = FF.data[area2_x1:area2_x2, area2_y1:area2_y2]
-            if np.max(area2) < 0.0:
+                    popt2, pcov2 = optimize.curve_fit(twoD_Gaussian, (x, y), np.ravel(area2), p0=initial_guess, bounds=bounds, method='dogbox')
+                except OptimizeWarning:
+                    area2 = FF.data[A2x1:A2x2, A2y1:A2y2]
+                    popt2, pcov2 = optimize.curve_fit(twoD_Gaussian, (x, y), np.ravel(area2), p0=initial_guess, bounds=bounds, method='dogbox')
+                #popt2, pcov2 = optimize.curve_fit(twoD_Gaussian, (x, y), np.ravel(area2), p0=initial_guess)
+                #data2_fitted = twoD_Gaussian((x, y), *popt2)
+                #plt.figure(2)
+                #plt.imshow(data2_fitted.reshape(15, 15))
+                d2_pxl = np.sqrt(np.square(FFTwindowSize/2 - (A2x1 + popt2[1])) + np.square(FFTwindowSize/2 - (A2y1 + popt2[2])))
+                angle2 = abs(math.atan((FFTwindowSize/2 - (A2y1 + popt2[2]))/(FFTwindowSize/2 - (A2x1 + popt2[1])))*180/math.pi)
+                map_d_pxl[1, j] = d2_pxl
+                map_angle[1, j] = angle2
+                del popt2, pcov2
+            except RuntimeError:
                 map_d_pxl[1, j] = 0
                 map_angle[1, j] = 0
-            else:
+                error2 = error2 + 1
+    # AREA 3
+        area3 = FF.data[A3x1:A3x2, A3y1:A3y2]
+        area3 = np.clip(area3, 0.85*np.max(area3), np.max(area3))
+        w, h = np.shape(area3)
+        x, y = np.mgrid[0:h, 0:w]
+        initial_guess = (1, 6, 6, 3, 3, 0, 8)
+        bounds = ([-np.inf, 1, 1, -np.inf, -np.inf, -np.inf, -np.inf],[np.inf, 14, 14, np.inf, np.inf, np.inf, np.inf])
+        if np.max(area3) < 5:
+            popt3 = np.zeros([7])
+            map_d_pxl[2, j] = 0
+            map_angle[2, j] = 0
+        else:
+            try:
                 try:
-                    popt2, pcov2 = optimize.curve_fit(twoD_Gaussian, (x, y), np.ravel(area2), p0=initial_guess)
-                    data2_fitted = twoD_Gaussian((x, y), *popt2)
-                    #plt.figure(2)
-                    #plt.imshow(data2_fitted.reshape(15, 15))
-                    reflection2 = np.zeros([2])
-                    reflection2[0] = area2_x1 + popt2[1]
-                    reflection2[1] = area2_y1 + popt2[2]
-                    vector2 = np.zeros([2])
-                    vector2[0] = FFTwindowSize/2 - reflection2[0]
-                    vector2[1] = FFTwindowSize/2 - reflection2[1]
-                    d2_pxl = np.sqrt(np.square(vector2[0]) + np.square(vector2[1]))
-                    angle2 = math.acos((vector_original[0]*vector2[0] + vector_original[1]*vector2[1])/(d2_pxl*vector_original[2]))*180/math.pi
-                    map_d_pxl[1, j] = d2_pxl
-                    map_angle[1, j] = angle2
-                    del popt2, vector2, reflection2
-                except RuntimeError:
-                    map_d_pxl[1, j] = 0
-                    map_angle[1, j] = 0
-                    error2 = error2 + 1
-        elif np.shape(peakPos)[0] == 3: 
-        # AREA 1
-            area1_x1 = int(peakPos[0][0][1]-FFTwindowSize/16)
-            area1_x2 = int(peakPos[0][0][1]+FFTwindowSize/16)
-            area1_y1 = int(peakPos[0][0][0]-FFTwindowSize/16)
-            area1_y2 = int(peakPos[0][0][0]+FFTwindowSize/16)
-            area1 = FF.data[area1_x1:area1_x2, area1_y1:area1_y2]
-            #p = np.asarray(area1).astype('float')
-            w, h = np.shape(area1)
-            x, y = np.mgrid[0:h, 0:w]
-            #xy = (x, y)
-            initial_guess = (1, 6, 6, 1, 1, 0, 1)
-            if np.max(area1) < 2:
-                map_d_pxl[0, j] = 0
-                map_angle[0, j] = 0
-            else:
-                try:
-                    #area1a = FF_filtered[80:90, 13:23]   
-                    popt1, pcov1 = optimize.curve_fit(twoD_Gaussian, (x, y), np.ravel(area1), p0=initial_guess)
-                    data1_fitted = twoD_Gaussian((x, y), *popt1)
-                    #plt.figure(1)
-                    #plt.imshow(data1_fitted.reshape(15, 15))
-                    reflection1 = np.zeros([2])
-                    reflection1[0] = area1_x1 + popt1[1]
-                    reflection1[1] = area1_y1 + popt1[2]
-                    vector1 = np.zeros([2])
-                    vector1[0] = FFTwindowSize/2 - reflection1[0]
-                    vector1[1] = FFTwindowSize/2 - reflection1[1]
-                    d1_pxl = np.sqrt(np.square(vector1[0]) + np.square(vector1[1]))
-                    angle1 = math.acos((vector_original[0]*vector1[0] + vector_original[1]*vector1[1])/(d1_pxl*vector_original[2]))*180/math.pi
-                    map_d_pxl[0, j] = d1_pxl
-                    map_angle[0, j] = angle1
-                    del popt1, vector1, reflection1
-                except RuntimeError:
-                    map_d_pxl[0, j] = 0
-                    map_angle[0, j] = 0
-                    error1 = error1 + 1
-            # AREA 2
-            area2_x1=int(peakPos[1][0][1]-FFTwindowSize/16)
-            area2_x2=int(peakPos[1][0][1]+FFTwindowSize/16)
-            area2_y1=int(peakPos[1][0][0]-FFTwindowSize/16)
-            area2_y2=int(peakPos[1][0][0]+FFTwindowSize/16)
-            area2 = FF.data[area2_x1:area2_x2, area2_y1:area2_y2]
-            if np.max(area2) < 0.0:
-                map_d_pxl[1, j] = 0
-                map_angle[1, j] = 0
-            else:
-                try:
-                    popt2, pcov2 = optimize.curve_fit(twoD_Gaussian, (x, y), np.ravel(area2), p0=initial_guess)
-                    data2_fitted = twoD_Gaussian((x, y), *popt2)
-                    #plt.figure(2)
-                    #plt.imshow(data2_fitted.reshape(15, 15))
-                    reflection2 = np.zeros([2])
-                    reflection2[0] = area2_x1 + popt2[1]
-                    reflection2[1] = area2_y1 + popt2[2]
-                    vector2 = np.zeros([2])
-                    vector2[0] = FFTwindowSize/2 - reflection2[0]
-                    vector2[1] = FFTwindowSize/2 - reflection2[1]
-                    d2_pxl = np.sqrt(np.square(vector2[0]) + np.square(vector2[1]))
-                    angle2 = math.acos((vector_original[0]*vector2[0] + vector_original[1]*vector2[1])/(d2_pxl*vector_original[2]))*180/math.pi
-                    map_d_pxl[1, j] = d2_pxl
-                    map_angle[1, j] = angle2
-                    del popt2, vector2, reflection2
-                except RuntimeError:
-                    map_d_pxl[1, j] = 0
-                    map_angle[1, j] = 0
-                    error2 = error2 + 1
-            # AREA 3
-            area3_x1 = int(peakPos[2][0][1]-FFTwindowSize/16)
-            area3_x2 = int(peakPos[2][0][1]+FFTwindowSize/16)
-            area3_y1 = int(peakPos[2][0][0]-FFTwindowSize/16)
-            area3_y2 = int(peakPos[2][0][0]+FFTwindowSize/16)
-            area3 = FF.data[area3_x1:area3_x2, area3_y1:area3_y2]
-            if np.max(area3) < 0.0:
-                popt3 = np.zeros([7])
+                    popt3, pcov3 = optimize.curve_fit(twoD_Gaussian, (x, y), np.ravel(area3), p0=initial_guess, bounds=bounds, method='dogbox')
+                except OptimizeWarning:
+                    area3 = FF.data[A3x1:A3x2, A3y1:A3y2]
+                    popt3, pcov3 = optimize.curve_fit(twoD_Gaussian, (x, y), np.ravel(area3), p0=initial_guess, bounds=bounds, method='dogbox')
+                #popt3, pcov3 = optimize.curve_fit(twoD_Gaussian, (x, y), np.ravel(area3), p0=initial_guess)                
+                #data3_fitted = twoD_Gaussian((x, y), *popt3)
+                #plt.figure(3)
+                #plt.imshow(data3_fitted.reshape(15, 15))
+                d3_pxl = np.sqrt(np.square(FFTwindowSize/2 - (A3x1 + popt3[1])) + np.square(FFTwindowSize/2 - (A3y1 + popt3[2])))
+                angle3 = abs(math.atan((FFTwindowSize/2 - (A3y1 + popt3[2]))/(FFTwindowSize/2 - (A3x1 + popt3[1])))*180/math.pi)
+                map_d_pxl[2, j] = d3_pxl
+                map_angle[2, j] = angle3        
+                del popt3, pcov3
+            except RuntimeError:
                 map_d_pxl[2, j] = 0
                 map_angle[2, j] = 0
-            else:
-                try:
-                    popt3, pcov3 = optimize.curve_fit(twoD_Gaussian, (x, y), np.ravel(area3), p0=initial_guess)
-                    data3_fitted = twoD_Gaussian((x, y), *popt3)
-                    #plt.figure(3)
-                    #plt.imshow(data3_fitted.reshape(15, 15))
-                    reflection3 = np.zeros([2])
-                    reflection3[0] = area3_x1 + popt3[1]
-                    reflection3[1] = area3_y1 + popt3[2]
-                    vector3 = np.zeros([2])
-                    vector3[0] = FFTwindowSize/2 - reflection3[0]
-                    vector3[1] = FFTwindowSize/2 - reflection3[1]
-                    d3_pxl = np.sqrt(np.square(vector3[0]) + np.square(vector3[1]))
-                    angle3 = math.acos((vector_original[0]*vector3[0] + vector_original[1]*vector3[1])/(d3_pxl*vector_original[2]))*180/math.pi
-                    map_d_pxl[2, j] = d3_pxl
-                    map_angle[2, j] = angle3
-                    del popt3, vector3, reflection3
-                except RuntimeError:
-                    map_d_pxl[2, j] = 0
-                    map_angle[2, j] = 0
-                    error3 = error3 + 1
-        elif np.shape(peakPos)[0] == 4: 
-        # AREA 1
-            area1_x1 = int(peakPos[0][0][1]-FFTwindowSize/16)
-            area1_x2 = int(peakPos[0][0][1]+FFTwindowSize/16)
-            area1_y1 = int(peakPos[0][0][0]-FFTwindowSize/16)
-            area1_y2 = int(peakPos[0][0][0]+FFTwindowSize/16)
-            area1 = FF.data[area1_x1:area1_x2, area1_y1:area1_y2]
-            #p = np.asarray(area1).astype('float')
-            w, h = np.shape(area1)
-            x, y = np.mgrid[0:h, 0:w]
-            #xy = (x, y)
-            initial_guess = (1, 6, 6, 1, 1, 0, 1)
-            if np.max(area1) < 2:
-                map_d_pxl[0, j] = 0
-                map_angle[0, j] = 0
-            else:
-                try:
-                    #area1a = FF_filtered[80:90, 13:23]
-                    popt1, pcov1 = optimize.curve_fit(twoD_Gaussian, (x, y), np.ravel(area1), p0=initial_guess)
-                    data1_fitted = twoD_Gaussian((x, y), *popt1)
-                    #plt.figure(1)
-                    #plt.imshow(data1_fitted.reshape(15, 15))
-                    reflection1 = np.zeros([2])
-                    reflection1[0] = area1_x1 + popt1[1]
-                    reflection1[1] = area1_y1 + popt1[2]
-                    vector1 = np.zeros([2])
-                    vector1[0] = FFTwindowSize/2 - reflection1[0]
-                    vector1[1] = FFTwindowSize/2 - reflection1[1]
-                    d1_pxl = np.sqrt(np.square(vector1[0]) + np.square(vector1[1]))
-                    angle1 = math.acos((vector_original[0]*vector1[0] + vector_original[1]*vector1[1])/(d1_pxl*vector_original[2]))*180/math.pi
-                    map_d_pxl[0, j] = d1_pxl
-                    map_angle[0, j] = angle1
-                    del popt1, vector1, reflection1
-                except RuntimeError:
-                    map_d_pxl[0, j] = 0
-                    map_angle[0, j] = 0
-                    error1 = error1 + 1
-            # AREA 2
-            area2_x1=int(peakPos[1][0][1]-FFTwindowSize/16)
-            area2_x2=int(peakPos[1][0][1]+FFTwindowSize/16)
-            area2_y1=int(peakPos[1][0][0]-FFTwindowSize/16)
-            area2_y2=int(peakPos[1][0][0]+FFTwindowSize/16)
-            area2 = FF.data[area2_x1:area2_x2, area2_y1:area2_y2]
-            if np.max(area2) < 0.0:
-                map_d_pxl[1, j] = 0
-                map_angle[1, j] = 0
-            else:
-                try:
-                    popt2, pcov2 = optimize.curve_fit(twoD_Gaussian, (x, y), np.ravel(area2), p0=initial_guess)
-                    data2_fitted = twoD_Gaussian((x, y), *popt2)
-                    #plt.figure(2)
-                    #plt.imshow(data2_fitted.reshape(15, 15))
-                    reflection2 = np.zeros([2])
-                    reflection2[0] = area2_x1 + popt2[1]
-                    reflection2[1] = area2_y1 + popt2[2]
-                    vector2 = np.zeros([2])
-                    vector2[0] = FFTwindowSize/2 - reflection2[0]
-                    vector2[1] = FFTwindowSize/2 - reflection2[1]
-                    d2_pxl = np.sqrt(np.square(vector2[0]) + np.square(vector2[1]))
-                    angle2 = math.acos((vector_original[0]*vector2[0] + vector_original[1]*vector2[1])/(d2_pxl*vector_original[2]))*180/math.pi
-                    map_d_pxl[1, j] = d2_pxl
-                    map_angle[1, j] = angle2
-                    del popt2, vector2, reflection2
-                except RuntimeError:
-                    map_d_pxl[1, j] = 0
-                    map_angle[1, j] = 0
-                    error2 = error2 + 1
-            # AREA 3
-            area3_x1 = int(peakPos[2][0][1]-FFTwindowSize/16)
-            area3_x2 = int(peakPos[2][0][1]+FFTwindowSize/16)
-            area3_y1 = int(peakPos[2][0][0]-FFTwindowSize/16)
-            area3_y2 = int(peakPos[2][0][0]+FFTwindowSize/16)
-            area3 = FF.data[area3_x1:area3_x2, area3_y1:area3_y2]
-            if np.max(area3) < 0.0:
-                popt3 = np.zeros([7])
-                map_d_pxl[2, j] = 0
-                map_angle[2, j] = 0
-            else:
-                try:
-                    popt3, pcov3 = optimize.curve_fit(twoD_Gaussian, (x, y), np.ravel(area3), p0=initial_guess)                
-                    data3_fitted = twoD_Gaussian((x, y), *popt3)
-                    #plt.figure(3)
-                    #plt.imshow(data3_fitted.reshape(15, 15))
-                    reflection3 = np.zeros([2])
-                    reflection3[0] = area3_x1 + popt3[1]
-                    reflection3[1] = area3_y1 + popt3[2]
-                    vector3 = np.zeros([2])
-                    vector3[0] = FFTwindowSize/2 - reflection3[0]
-                    vector3[1] = FFTwindowSize/2 - reflection3[1]
-                    d3_pxl = np.sqrt(np.square(vector3[0]) + np.square(vector3[1]))
-                    angle3 = math.acos((vector_original[0]*vector3[0] + vector_original[1]*vector3[1])/(d3_pxl*vector_original[2]))*180/math.pi
-                    map_d_pxl[2, j] = d3_pxl
-                    map_angle[2, j] = angle3
-                    del popt3, vector3, reflection3
-                except RuntimeError:
-                    map_d_pxl[2, j] = 0
-                    map_angle[2, j] = 0
-                    error3 = error3 + 1
-            # AREA 4
-            area4_x1 = int(peakPos[3][0][1]-FFTwindowSize/16)
-            area4_x2 = int(peakPos[3][0][1]+FFTwindowSize/16)
-            area4_y1 = int(peakPos[3][0][0]-FFTwindowSize/16)
-            area4_y2 = int(peakPos[3][0][0]+FFTwindowSize/16)
-            area4 = FF.data[area4_x1:area4_x2, area4_y1:area4_y2]
-            if np.max(area4) < 0.0:
-                popt4 = np.zeros([7])
-                map_d_pxl[3, j] = 0
-                map_angle[3, j] = 0
-            else:
-                try:
-                    popt4, pcov4 = optimize.curve_fit(twoD_Gaussian, (x, y), np.ravel(area4), p0=initial_guess)                
-                    data4_fitted = twoD_Gaussian((x, y), *popt4)
-                    #plt.figure(3)
-                    #plt.imshow(data3_fitted.reshape(15, 15))
-                    reflection4 = np.zeros([2])
-                    reflection4[0] = area4_x1 + popt4[1]
-                    reflection4[1] = area4_y1 + popt4[2]
-                    vector4 = np.zeros([2])
-                    vector4[0] = FFTwindowSize/2 - reflection4[0]
-                    vector4[1] = FFTwindowSize/2 - reflection4[1]
-                    d4_pxl = np.sqrt(np.square(vector4[0]) + np.square(vector4[1]))
-                    angle4 = math.acos((vector_original[0]*vector4[0] + vector_original[1]*vector4[1])/(d4_pxl*vector_original[2]))*180/math.pi
-                    map_d_pxl[3, j] = d4_pxl
-                    map_angle[3, j] = angle4
-                    del popt4, vector4, reflection4
-                except RuntimeError:
-                    map_d_pxl[3, j] = 0
-                    map_angle[3, j] = 0
-                    error4 = error4 + 1
+                error3 = error3 + 1
     return map_d_pxl, map_angle
+
+def testfunc(start, end):
+    array = list(range(start, end))
+    return array
+
+
+data2 = createImage(im, FFTwindowSize, parts)
+
+if np.shape(data2)[0] == 3:
+    for i in range(np.shape(data2)[0]):
+        dict0 = {'name':'Axis0', 'size': np.shape(data2)[1],  'units':'nm', 'scale': pixelSize, 'offset':1}
+        dict1 = {'name':'Axis1', 'size': np.shape(data2)[2],  'units':'nm', 'scale': pixelSize, 'offset':1}
+        dataset = hs.signals.BaseSignal(data2[i], axes=[dict0, dict1])
+        if __name__ == '__main__':
+            start_i = 0
+            end_i = np.shape(dataset)[1]-FFTwindowSize
+            #start_i = 0
+            #end_i = 200
+            array = list(range(start_i, end_i))
+            p = mp.Pool(15)
+            data = p.map(fftanalysis2, array)
+            #print(data)
+            np.save('data_' + str(i) + '.npy', data)
+else:
+    dict0 = {'name':'Axis0', 'size': np.shape(data2)[0],  'units':'nm', 'scale': pixelSize, 'offset':1}
+    dict1 = {'name':'Axis1', 'size': np.shape(data2)[1],  'units':'nm', 'scale': pixelSize, 'offset':1}
+    dataset = hs.signals.BaseSignal(data2, axes=[dict0, dict1])
+    if __name__ == '__main__':
+        start_i = 0
+        end_i = np.shape(dataset)[1]-FFTwindowSize
+        #start_i = 0
+        #end_i = 200
+        array = list(range(start_i, end_i))
+        p = mp.Pool(15)
+        data = p.map(fftanalysis2, array)
+        #print(data)
+        np.save('data' + '.npy', data)
+        
+end = time.time()
+time_passed = (end-start)*60
+print(time_passed)
+
