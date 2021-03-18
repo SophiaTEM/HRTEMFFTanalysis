@@ -67,11 +67,11 @@ def RefID(data, pixelSize, FFTwindowSize):
     ax = plt.imshow(FF)
     peakPos = []
     A1 = select_mvc(FF)    
-    peakPos.append(A1)
+    peakPos.append(np.flip(A1))
     A2 = select_mvc(FF)
-    peakPos.append(A2)
+    peakPos.append(np.flip(A2))
     A3 = select_mvc(FF)
-    peakPos.append(A3)
+    peakPos.append(np.flip(A3))
     return peakPos
 
 def createImage(im, FFTwindowSize, parts):

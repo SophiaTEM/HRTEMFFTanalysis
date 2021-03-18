@@ -48,16 +48,16 @@ def select_mvc(data):
     plt.close()
 #%%
 ##### Import of the matlab file
-f1 = scipy.io.loadmat('H:\\bestMovies\\201120\\1138_i30_binned2.mat', mdict=None, appendmat=True)
+f1 = scipy.io.loadmat('G:\\My Drive\\DataAnalysis\\H2inPdNanoparticles\\bestMovies\\201120\\1138_i30_binned2.mat', mdict=None, appendmat=True)
 data = f1['im']
 #f1 = h5py.File('H:\\bestMovies\\201120\\1138_i30_binned2.mat', 'r')
 #list(f1.keys())
 FFTwindowSize = 128
-coreNumber = 12
+coreNumber = 1
 pixelsize = 0.0333441 #nm
 #%%
 size = np.shape(data)[0]
-dict0 = {'size': 1564, 'name':'Axis0', 'units':'nm', 'scale':pixelsize, 'offset':1}
+dict0 = {'size': np.shape(data)[0], 'name':'Axis0', 'units':'nm', 'scale':pixelsize, 'offset':1}
 s1 = hs.signals.BaseSignal(data, axes=[dict0, dict0])
 [X, Y] = np.shape(data)
 
@@ -83,7 +83,7 @@ start = time.time()
 
 def fftanalysis2(i):
     start_j = 0
-    end_j = 1000
+    end_j = 10
     #end_j = np.shape(dataset)[0]-FFTwindowSize
     #end_j = np.shape(dataset)[0]
     map_d_pxl =  np.zeros([4, np.shape(dataset)[1], np.shape(dataset)[1]])
@@ -107,9 +107,9 @@ def fftanalysis2(i):
         x, y = np.mgrid[0:h, 0:w]
         xy = (x,y)
         initial_guess = (1, 6, 6, 1, 1, 0, 1)
-        if np.max(area1) < 2:
-            map_d_pxl[0, j] = 0
-            map_angle[0, j] = 0
+        if np.max(area1) < 0.0:
+            map_d_pxl[0, j, 0] = 0
+            map_angle[0, j, 0] = 0
         else:
             try:
                 #area1a = FF_filtered[80:90, 13:23]   
@@ -126,18 +126,18 @@ def fftanalysis2(i):
                 vector1[1] = int(FFTwindowSize*0.5) - reflection1[1]
                 d1_pxl = np.sqrt(np.square(vector1[0]) + np.square(vector1[1]))
                 angle1 = math.acos((vector_original[0]*vector1[0] + vector_original[1]*vector1[1])/(d1_pxl*vector_original[2]))*180/math.pi
-                map_d_pxl[0, j] = d1_pxl
-                map_angle[0, j] = angle1
+                map_d_pxl[0, j, 0] = d1_pxl
+                map_angle[0, j, 0] = angle1
                 del popt1, vector1, reflection1
             except RuntimeError:
-                map_d_pxl[0, j] = 0
-                map_angle[0, j] = 0
+                map_d_pxl[0, j, 0] = 0
+                map_angle[0, j, 0] = 0
                 error1 = error1 + 1
     # AREA 2
         area2 = FF.data[area2_x-8:area2_x+7, area2_y-8:area2_y+7]
         if np.max(area2) < 0.0:
-            map_d_pxl[1, j] = 0
-            map_angle[1, j] = 0
+            map_d_pxl[1, j, 0] = 0
+            map_angle[1, j, 0] = 0
         else:
             try:
                 popt2, pcov2 = optimize.curve_fit(twoD_Gaussian, (x, y), np.ravel(area2), p0=initial_guess)
@@ -152,19 +152,19 @@ def fftanalysis2(i):
                 vector2[1] = int(FFTwindowSize*0.5) - reflection2[1]
                 d2_pxl = np.sqrt(np.square(vector2[0]) + np.square(vector2[1]))
                 angle2 = math.acos((vector_original[0]*vector2[0] + vector_original[1]*vector2[1])/(d2_pxl*vector_original[2]))*180/math.pi
-                map_d_pxl[1, j] = d2_pxl
-                map_angle[1, j] = angle2
+                map_d_pxl[1, j, 0] = d2_pxl
+                map_angle[1, j, 0] = angle2
                 del popt2, vector2, reflection2
             except RuntimeError:
-                map_d_pxl[1, j] = 0
-                map_angle[1, j] = 0
+                map_d_pxl[1, j, 0] = 0
+                map_angle[1, j, 0] = 0
                 error2 = error2 + 1
     # AREA 3
         area3 = FF.data[area3_x-8:area3_x+7, area3_y-8:area3_y+7]
         if np.max(area3) < 0.0:
             popt3 = np.zeros([7])
-            map_d_pxl[2, j] = 0
-            map_angle[2, j] = 0
+            map_d_pxl[2, j, 0] = 0
+            map_angle[2, j, 0] = 0
         else:
             try:
                 popt3, pcov3 = optimize.curve_fit(twoD_Gaussian, (x, y), np.ravel(area3), p0=initial_guess)                
@@ -179,12 +179,12 @@ def fftanalysis2(i):
                 vector3[1] = int(FFTwindowSize*0.5) - reflection3[1]
                 d3_pxl = np.sqrt(np.square(vector3[0]) + np.square(vector3[1]))
                 angle3 = math.acos((vector_original[0]*vector3[0] + vector_original[1]*vector3[1])/(d3_pxl*vector_original[2]))*180/math.pi
-                map_d_pxl[2, j] = d3_pxl
-                map_angle[2, j] = angle3        
+                map_d_pxl[2, j, 0] = d3_pxl
+                map_angle[2, j, 0] = angle3        
                 del popt3, vector3, reflection3
             except RuntimeError:
-                map_d_pxl[2, j] = 0
-                map_angle[2, j] = 0
+                map_d_pxl[2, j, 0] = 0
+                map_angle[2, j, 0] = 0
                 error3 = error3 + 1
     return map_d_pxl, map_angle
 #%%
@@ -194,7 +194,8 @@ def testfunc(start, end):
 
 if __name__ == '__main__':
     start_i = 0
-    end_i = np.shape(dataset)[0]-FFTwindowSize
+    end_i = 10
+    #end_i = np.shape(dataset)[0]-FFTwindowSize
     array = list(range(start_i, end_i))
     p = mp.Pool(coreNumber)
     data = p.map(fftanalysis2, array)

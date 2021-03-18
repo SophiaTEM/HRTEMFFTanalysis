@@ -86,13 +86,17 @@ def generateMap(parts):
                     map_angleA[k, 0, i, j] = data[i][1][0][j][4]
                     map_angleA[k, 1, i, j] = data[i][1][1][j][4]
                     map_angleA[k, 2, i, j] = data[i][1][2][j][4] 
-        for i in range(parts):
-            
+        maps_d_pxlB = map_d_pxlB[0, :, :, :]
+        l = 1
+        for i in range(0, np.square(parts)):     
             while k < parts-1:
                 for j in range(np.shape(map_d_pxlA)[1]):
-                    map_d_pxlB[j, :, :] = numpy.concatenate((map_d_pxlA[k, j, :, :], map_d_pxlA[k+1, j, :, :], axis=0)
-
-                k = k + 2
+                    map_d_pxlB[l, j, :, :] = np.concatenate((map_d_pxlB[j, :, :], map_d_pxlA[k, j, :, :], axis=0)
+                k = k + 1
+        maps_d_pxlC = map_d_pxlB[0, :, :, :]
+        for i in range(1, parts):
+            for j in range(np.shape(map_d_pxlA)[1]):
+                maps_d_pxlC[j, :, :] = np.concatenate((map_d_pxlC[j, :, :], map_d_pxlB[k, j, :, :]))
     
     
     return map_d_pxl, map_angle
@@ -189,7 +193,16 @@ def cleanUp(map_d_pxl, map_angle, peakPos, FFTwindowSize, pixelSize):
     f1 = open(path +'map_d_Angst.pckl', 'wb')
     pickle.dump(map_d_Angst, f1)
     f1.close()
-    return map_d_Angst, map_angle_av
+    return map_d_av, map_d_Angst, map_angle_av
 
 def makeMask(im, threshold):
-    
+    im_norm = im/np.mean(im)
+    ret,mask = cv2.threshold(im_norm,threshold,1,cv2.THRESH_BINARY_INV)
+    se1 = cv2.getStructuringElement(cv2.MORPH_RECT,(15,15))
+    mask2 = cv2.morphologyEx(mask, cv2.MORPH_OPEN, se1)
+    se1 = cv2.getStructuringElement(cv2.MORPH_RECT,(20,20))
+    mask3 = cv2.morphologyEx(mask2, cv2.MORPH_CLOSE, se1)
+    mask4 = np.zeros([np.shape(map_d_av)[1], np.shape(map_d_av)[2]])
+    return mask4
+
+im_woBG = im*mask4
