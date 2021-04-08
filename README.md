@@ -63,7 +63,7 @@ else:
 Falsely identified reflections are removed based on the angle (a variation of 5 degree is considered acceptable). In addition, segmentation is used to remove the amorphous background using a threshold value which must be determined for each dataset individually. Finally, several pixel values (5x5, 10x10, 15x15 and 20x20) are averaged to obtain the spatial variation of the d-spacing for the different reflection using the following function and a created mask separating the nanoparticle from the amorphous background. 
 
 ```
-mapgeneration(map_d_pxl, map_angle, mask):
+mapgeneration(map_d_pxl, map_angle, mask)
 
 ```
 
