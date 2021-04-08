@@ -12,7 +12,7 @@ First the reflections used for the analysis must be selected in the image using 
 ```
 peakPos = RefID(dataset, FFTwindowSize)
 ```
-Subsequently the rolling window algorithm determines spatial variations of the selected reflections within the crystal. Parallelization is used to reduce the time it takes for the process to finish (the number of selected CPU cores is given be coreNumber). Copy the function <b>fftanalysis2(i)</b> into your Python script and add the following lines to run the parallelized code:
+Subsequently the rolling window algorithm determines spatial variations of the selected reflections within the crystal. Parallelization is used to reduce the time it takes for the process to finish (the number of selected CPU cores is given be <b>coreNumber</b>). Copy the function <b>fftanalysis2(i)</b> into your Python script and add the following lines to run the parallelized code:
 ```
 dict0 = {'name':'Axis0', 'size': np.shape(data2)[0],  'units':'nm', 'scale': pixelSize, 'offset':1}
 dict1 = {'name':'Axis1', 'size': np.shape(data2)[1],  'units':'nm', 'scale': pixelSize, 'offset':1}
