@@ -18,14 +18,13 @@ peakPos = RefID(dataset, FFTwindowSize)
 <b> step 3: </b>
 Subsequently the rolling window algorithm determines spatial variations of the selected reflections within the crystal (<b>fftanalysis2</b>) using a two-dimensional Gaussian fit to determine the peak position (<b>twoD_Gaussian</b>). The parallelization of the code is done using the multiprocessing package using the following code:
 ```
+data2 = np.pad(im, ((int(FFTwindowSize/2), int(FFTwindowSize/2)),(int(FFTwindowSize/2), int(FFTwindowSize/2))))
 dict0 = {'name':'Axis0', 'size': np.shape(data2)[0],  'units':'nm', 'scale': pixelSize, 'offset':1}
 dict1 = {'name':'Axis1', 'size': np.shape(data2)[1],  'units':'nm', 'scale': pixelSize, 'offset':1}
 dataset = hs.signals.BaseSignal(data2, axes=[dict0, dict1])
 if __name__ == '__main__':
     start_i = 0
     end_i = np.shape(dataset)[1]-FFTwindowSize
-    #start_i = 0
-    #end_i = 200
     array = list(range(start_i, end_i))
     p = mp.Pool(coreNumber)
     data = p.map(fftanalysis2, array)
