@@ -56,11 +56,11 @@ def RefID(data, pixelSize, FFTwindowSize):
         print('Selected values: ', val)
         plt.close()
         return val
-    size = np.shape(data)[0]
     dict0 = {'size': int(np.shape(data)[0]), 'name':'Axis0', 'units':'nm', 'scale':pixelSize, 'offset':1}
-    s1 = hs.signals.BaseSignal(data, axes=[dict0, dict0])
-    i = int(np.shape(s1)[0]*0.4)
-    j = int(np.shape(s1)[1]*0.4)
+    dict1 = {'size': int(np.shape(data)[1]), 'name':'Axis0', 'units':'nm', 'scale':pixelSize, 'offset':1}
+    s1 = hs.signals.BaseSignal(data, axes=[dict0, dict1])
+    j = int(np.shape(s1)[0]*0.4)
+    i = int(np.shape(s1)[1]*0.4)
     dataset = s1
     dataset_crop = dataset.isig[i:(i+FFTwindowSize), j:(j+FFTwindowSize)]
     FF = np.log(dataset_crop.fft(shift=True, apodization=True).amplitude)
