@@ -29,15 +29,9 @@ im = io.imread('Aligned 20201120 1138 620 kx Ceta_binned_aligned_slice1crop.tif'
 FFTwindowSize=128
 pixelSize = 0.033344114597
 coreNumber = 15
-# if memory is a problem: 
-parts = 3
-# if memory is no problem:
-parts = 0
 
 # Determine position of the reflections in the image
-
 start = time.time()
-
 
 def RefID(data, pixelSize, FFTwindowSize):
     def select_mvc(data):
@@ -74,25 +68,9 @@ def RefID(data, pixelSize, FFTwindowSize):
     peakPos.append(np.flip(A3))
     return peakPos
 
-def createImage(im, FFTwindowSize, parts):
-    if parts != 0:
-        im2 = np.pad(im, ((int(FFTwindowSize/2), int(FFTwindowSize/2)),(int(FFTwindowSize/2), int(FFTwindowSize/2))))
-        im_crop = np.zeros([parts*parts, int(np.shape(im)[0]/parts+FFTwindowSize), int(np.shape(im)[1]/parts+FFTwindowSize)])
-    
-        k = 0
-        for i in range(parts):
-            for j in range(parts):
-                im_crop[k] = im2[i*int(np.shape(im)[0]/parts):int((i+1)*np.shape(im)[0]/parts+FFTwindowSize), j*int(np.shape(im)[1]/parts):int((j+1)*np.shape(im)[1]/parts+FFTwindowSize)]
-                k = k + 1
-    
-        data2 = np.pad(im_crop, ((0, 0), (0, FFTwindowSize),(0, FFTwindowSize)))
-    else:
-        data2 = np.pad(im, ((0, 0), (0, FFTwindowSize),(0, FFTwindowSize)))
-    return data2
-
-
-##### Gaussian function to fit to the peaks
-#define model function and pass independant variables x and y as a list
+##############################################################################
+############################ Copy this part into your script
+##############################################################################
 def twoD_Gaussian(xdata_tuple, amplitude, xo, yo, sigma_x, sigma_y, theta, offset):
     (x, y) = xdata_tuple                                                        
     xo = float(xo)                                                              
@@ -108,28 +86,28 @@ def fftanalysis2(i):
     start_j = 0
     end_j = np.shape(dataset)[0]-FFTwindowSize
     #area1 
-    A1x1 = peakPos[0][0][1] - 7
-    A1x2 = peakPos[0][0][1] + 15
-    A1y1 = peakPos[0][0][0] - 7
-    A1y2 = peakPos[0][0][0] + 15
+    A1x1 = int(peakPos[0][0][1]) - 7
+    A1x2 = int(peakPos[0][0][1]) + 8
+    A1y1 = int(peakPos[0][0][0]) - 7
+    A1y2 = int(peakPos[0][0][0]) + 8
     #area2
-    A2x1 = peakPos[1][0][1] - 7
-    A2x2 = peakPos[1][0][1] + 15
-    A2y1 = peakPos[1][0][0] - 7
-    A2y2 = peakPos[1][0][0] + 15
+    A2x1 = int(peakPos[1][0][1]) - 7
+    A2x2 = int(peakPos[1][0][1]) + 8
+    A2y1 = int(peakPos[1][0][0]) - 7
+    A2y2 = int(peakPos[1][0][0]) + 7
     #area3
-    A3x1 = peakPos[2][0][1] - 7
-    A3x2 = peakPos[2][0][1] + 15
-    A3y1 = peakPos[2][0][0] - 7
-    A3y2 = peakPos[2][0][0] + 15
+    A3x1 = int(peakPos[2][0][1]) - 7
+    A3x2 = int(peakPos[2][0][1]) + 8
+    A3y1 = int(peakPos[2][0][0]) - 7
+    A3y2 = int(peakPos[2][0][0]) + 8
     #end_j = np.shape(dataset)[0]
-    map_d_pxl =  np.zeros([4, np.shape(dataset)[1], np.shape(dataset)[1]])
-    map_angle =  np.zeros([3, np.shape(dataset)[1], np.shape(dataset)[1]])
+    map_d_pxl =  np.zeros([4, np.shape(dataset)[0]-FFTwindowSize, 1])
+    map_angle =  np.zeros([3, np.shape(dataset)[0]-FFTwindowSize, 1])
     error3 = 0
     error1 = 0
     error2 = 0
     for j in range(start_j, end_j):
-        map_d_pxl[3, i, j] = dataset.data[i, j]
+        map_d_pxl[3, j, 0] = dataset.data[j, i]
         dataset_crop = dataset.isig[i:(i+FFTwindowSize), j:(j+FFTwindowSize)]
         FF = np.log(dataset_crop.fft(shift=True, apodization=True).amplitude)
     # AREA 1
@@ -140,8 +118,8 @@ def fftanalysis2(i):
         initial_guess = (1, 6, 6, 3, 3, 0, 8)
         bounds = ([-np.inf, 1, 1, -np.inf, -np.inf, -np.inf, -np.inf],[np.inf, 14, 14, np.inf, np.inf, np.inf, np.inf])
         if np.max(area1) < 5:
-            map_d_pxl[0, j] = 0
-            map_angle[0, j] = 0 
+            map_d_pxl[0, j, 0] = 0
+            map_angle[0, j, 0] = 0 
         else:
             try:
                 try:
@@ -157,12 +135,12 @@ def fftanalysis2(i):
             #def twoD_Gaussian((x,y), amplitude, xo, yo, sigma_x, sigma_y, theta, offset):
                 d1_pxl = np.sqrt(np.square(FFTwindowSize/2 - (A1x1 + popt1[1])) + np.square(FFTwindowSize/2 - (A1y1 + popt1[2])))
                 angle1 = abs(math.atan((FFTwindowSize/2 - (A1y1 + popt1[2]))/(FFTwindowSize/2 - (A1x1 + popt1[1])))*180/math.pi)
-                map_d_pxl[0, j] = d1_pxl
-                map_angle[0, j] = angle1
+                map_d_pxl[0, j, 0] = d1_pxl
+                map_angle[0, j, 0] = angle1
                 del popt1, pcov1
             except RuntimeError:
-                map_d_pxl[0, j] = 0
-                map_angle[0, j] = 0
+                map_d_pxl[0, j, 0] = 0
+                map_angle[0, j, 0] = 0
                 error1 = error1 + 1
     # AREA 2
         area2 = FF.data[A2x1:A2x2, A2y1:A2y2]
@@ -172,8 +150,8 @@ def fftanalysis2(i):
         initial_guess = (1, 6, 6, 3, 3, 0, 8)
         bounds = ([-np.inf, 1, 1, -np.inf, -np.inf, -np.inf, -np.inf],[np.inf, 14, 14, np.inf, np.inf, np.inf, np.inf])
         if np.max(area2) < 5:
-            map_d_pxl[1, j] = 0
-            map_angle[1, j] = 0
+            map_d_pxl[1, j, 0] = 0
+            map_angle[1, j, 0] = 0
         else:
             try:
                 try:
@@ -187,12 +165,12 @@ def fftanalysis2(i):
                 #plt.imshow(data2_fitted.reshape(15, 15))
                 d2_pxl = np.sqrt(np.square(FFTwindowSize/2 - (A2x1 + popt2[1])) + np.square(FFTwindowSize/2 - (A2y1 + popt2[2])))
                 angle2 = abs(math.atan((FFTwindowSize/2 - (A2y1 + popt2[2]))/(FFTwindowSize/2 - (A2x1 + popt2[1])))*180/math.pi)
-                map_d_pxl[1, j] = d2_pxl
-                map_angle[1, j] = angle2
+                map_d_pxl[1, j, 0] = d2_pxl
+                map_angle[1, j, 0] = angle2
                 del popt2, pcov2
             except RuntimeError:
-                map_d_pxl[1, j] = 0
-                map_angle[1, j] = 0
+                map_d_pxl[1, j, 0] = 0
+                map_angle[1, j, 0] = 0
                 error2 = error2 + 1
     # AREA 3
         area3 = FF.data[A3x1:A3x2, A3y1:A3y2]
@@ -203,8 +181,8 @@ def fftanalysis2(i):
         bounds = ([-np.inf, 1, 1, -np.inf, -np.inf, -np.inf, -np.inf],[np.inf, 14, 14, np.inf, np.inf, np.inf, np.inf])
         if np.max(area3) < 5:
             popt3 = np.zeros([7])
-            map_d_pxl[2, j] = 0
-            map_angle[2, j] = 0
+            map_d_pxl[2, j, 0] = 0
+            map_angle[2, j, 0] = 0
         else:
             try:
                 try:
@@ -218,12 +196,12 @@ def fftanalysis2(i):
                 #plt.imshow(data3_fitted.reshape(15, 15))
                 d3_pxl = np.sqrt(np.square(FFTwindowSize/2 - (A3x1 + popt3[1])) + np.square(FFTwindowSize/2 - (A3y1 + popt3[2])))
                 angle3 = abs(math.atan((FFTwindowSize/2 - (A3y1 + popt3[2]))/(FFTwindowSize/2 - (A3x1 + popt3[1])))*180/math.pi)
-                map_d_pxl[2, j] = d3_pxl
-                map_angle[2, j] = angle3        
+                map_d_pxl[2, j, 0] = d3_pxl
+                map_angle[2, j, 0] = angle3        
                 del popt3, pcov3
             except RuntimeError:
-                map_d_pxl[2, j] = 0
-                map_angle[2, j] = 0
+                map_d_pxl[2, j, 0] = 0
+                map_angle[2, j, 0] = 0
                 error3 = error3 + 1
     return map_d_pxl, map_angle
 
@@ -232,37 +210,21 @@ def testfunc(start, end):
     return array
 
 peakPos = RefID(im, pixelSize, FFTwindowSize)
-data2 = createImage(im, FFTwindowSize, parts)
+data2 = np.pad(im, ((int(FFTwindowSize/2), int(FFTwindowSize/2)),(int(FFTwindowSize/2), int(FFTwindowSize/2))))
 
-if np.shape(data2)[0] == 3:
-    for i in range(np.shape(data2)[0]):
-        dict0 = {'name':'Axis0', 'size': np.shape(data2)[1],  'units':'nm', 'scale': pixelSize, 'offset':1}
-        dict1 = {'name':'Axis1', 'size': np.shape(data2)[2],  'units':'nm', 'scale': pixelSize, 'offset':1}
-        dataset = hs.signals.BaseSignal(data2[i], axes=[dict0, dict1])
-        if __name__ == '__main__':
-            start_i = 0
-            end_i = np.shape(dataset)[1]-FFTwindowSize
-            #start_i = 0
-            #end_i = 200
-            array = list(range(start_i, end_i))
-            p = mp.Pool(15)
-            data = p.map(fftanalysis2, array)
-            #print(data)
-            np.save('data_' + str(i) + '.npy', data)
-else:
-    dict0 = {'name':'Axis0', 'size': np.shape(data2)[0],  'units':'nm', 'scale': pixelSize, 'offset':1}
-    dict1 = {'name':'Axis1', 'size': np.shape(data2)[1],  'units':'nm', 'scale': pixelSize, 'offset':1}
-    dataset = hs.signals.BaseSignal(data2, axes=[dict0, dict1])
-    if __name__ == '__main__':
-        start_i = 0
-        end_i = np.shape(dataset)[1]-FFTwindowSize
-        #start_i = 0
-        #end_i = 200
-        array = list(range(start_i, end_i))
-        p = mp.Pool(coreNumber)
-        data = p.map(fftanalysis2, array)
-        #print(data)
-        np.save('data' + '.npy', data)
+dict0 = {'name':'Axis0', 'size': np.shape(data2)[0],  'units':'nm', 'scale': pixelSize, 'offset':1}
+dict1 = {'name':'Axis1', 'size': np.shape(data2)[1],  'units':'nm', 'scale': pixelSize, 'offset':1}
+
+dataset = hs.signals.BaseSignal(data2, axes=[dict0, dict1])
+
+if __name__ == '__main__':
+    start_i = 0
+    end_i = np.shape(dataset)[1]-FFTwindowSize
+    array = list(range(start_i, end_i))
+    p = mp.Pool(coreNumber)
+    data = p.map(fftanalysis2, array)
+    #print(data)
+    np.save('data' + '.npy', data)
         
 end = time.time()
 time_passed = (end-start)*60
