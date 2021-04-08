@@ -5,7 +5,7 @@ Tool to analyze the lattice spacing within HRTEM images using a rolling window a
 First a high resolution image must be imported. It might be useful to bin the image to reduce the required memory and process time. Make sure provide the correct pixel size <b>pixelSize</b>, determine the window size used to calcualte the FFT pattern (<b>FFTwindowSize</b>). Since the script is parallelized the number of CPU cores used must be defined (<b>coreNumber</b>).
 ```
 ##### Data
-im = io.imread('Aligned 20201120 1138 620 kx Ceta_binned_aligned_slice1crop.tif')
+im = io.imread('filename.tif')
 FFTwindowSize = 128
 pixelSize = 0.033344114597
 coreNumber = 15
