@@ -47,7 +47,9 @@ Falsely identified reflections are removed based on the angle (a variation of 5 
 map_d_Angst = map_scaled(map_d_av, pixelSize) 
 ```
 <b> step 6: </b>
-A mask is created and used to separate the nanoparticle from the amorphous background.
+A mask is created and used to separate the nanoparticle from the amorphous background using the threshold to separate the intensity of the background and the intensity of the nanoparticle.
 ```
+mask = makeMask(im, threshold)
+final_map = finalMap(map_d_Angst, map_angle_av, mask)
 ```
   
