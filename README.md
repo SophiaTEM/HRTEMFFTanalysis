@@ -35,40 +35,19 @@ np.save('data' + '.npy', data)
 The final maps are created from the data file obtained from the parallel processed data analysis:
 ```
 data = np.load('data_0_128.npy', allow_pickle=True)
-pixelSizeImage = 0.0333442
-FFTwindowSize = 128
-pixelSize = (1/pixelSizeImage/FFTwindowSize)
-if np.shape(data)[0] > np.shape(data[0][0])[1]:
-    map_d_pxl = np.zeros([4, np.shape(data)[0], np.shape(data)[1]])
-    map_angle = np.zeros([4, np.shape(data)[0], np.shape(data)[1]])
-    for i in range (np.shape(data)[0]):
-        for j in range (np.shape(data[0][0])[1]):
-            map_d_pxl[0, i, j] = data[i][0][0][j][0]
-            map_d_pxl[1, i, j] = data[i][0][1][j][0]
-            map_d_pxl[2, i, j] = data[i][0][2][j][0]
-            map_d_pxl[3, i, j] = data[i][0][3][j][0]
-            map_angle[0, i, j] = data[i][1][0][j][0]
-            map_angle[1, i, j] = data[i][1][1][j][0]
-            map_angle[2, i, j] = data[i][1][2][j][0]
-else:
-    map_d_pxl = np.zeros([4, np.shape(data[0][0])[1], np.shape(data[0][0])[1]])
-    map_angle = np.zeros([4, np.shape(data[0][0])[1], np.shape(data[0][0])[1]])
-    for i in range (np.shape(data)[0]):
-        for j in range (np.shape(data[0][0])[1]):
-            map_d_pxl[0, i, j] = data[i][0][0][j][0]
-            map_d_pxl[1, i, j] = data[i][0][1][j][0]
-            map_d_pxl[2, i, j] = data[i][0][2][j][0]
-            map_d_pxl[3, i, j] = data[i][0][3][j][0]
-            map_angle[0, i, j] = data[i][1][0][j][0]
-            map_angle[1, i, j] = data[i][1][1][j][0]
-            map_angle[2, i, j] = data[i][1][2][j][0]
+
+generateMap(data)
 ```
 <b> step 5: </b>
-Falsely identified reflections are removed based on the angle (a variation of 5 degree is considered acceptable). In addition, segmentation is used to remove the amorphous background using a threshold value which must be determined for each dataset individually. Finally, several pixel values (5x5, 10x10, 15x15 and 20x20) are averaged to obtain the spatial variation of the d-spacing for the different reflection using the following function and a created mask separating the nanoparticle from the amorphous background. 
+Falsely identified reflections are removed based on the angle (a variation of 5 degree is considered acceptable). In addition, segmentation is used to remove the amorphous background using a threshold value which must be determined for each dataset individually. Several pixel values (5x5, 10x10, 15x15 and 20x20) are averaged to obtain the spatial variation of the d-spacing for the different reflection and the correct pixel size is applied for the maps.
 
 ```
-mapgeneration(map_d_pxl, map_angle, mask)
-
+[map_d_pxl_1A, map_angle_1A] = cleanUp(map_d_pxl, map_angle, peakPos, FFTwindowSize)
+[map_d_av, map_angle_1A] = averageMaps(map_d_pxl_1A, map_angle_1A)
+map_d_Angst = map_scaled(map_d_av, pixelSize) 
 ```
-
-
+<b> step 6: </b>
+A mask is created and used to separate the nanoparticle from the amorphous background.
+```
+```
+  
