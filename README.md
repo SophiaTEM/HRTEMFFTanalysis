@@ -32,7 +32,7 @@ if __name__ == '__main__':
 np.save('data' + '.npy', data)
 ```
 <b> step 4: </b>
-The final maps are created from the data file obtained from the parallel processed data analysis:
+The final maps are created from the data file obtained from the parallel processed data analysis using the functions stored in <b>CreateMaps.py</b>:
 ```
 data = np.load('data_0_128.npy', allow_pickle=True)
 
